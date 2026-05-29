@@ -1,0 +1,12 @@
+# Environments & Caches
+.venv/
+__pycache__/
+*.pyc
+
+# Local Tracking Directories (Shielded from Git)
+data/
+submissions/
+catboost_info/
+
+# OS Specific junk
+.DS_Store

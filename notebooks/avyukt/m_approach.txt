@@ -1,0 +1,14 @@
+TRAFFIC DEMAND PREDICTION - GRADIENT BOOSTING ENSEMBLE SOLUTION
+
+1. VALDIATION STRATEGY:
+- Implemented a robust 5-Fold Cross-Validation loop to ensure local R2 validation scales perfectly with the evaluation metric and completely guards against data leakage.
+
+2. FEATURE ENGINEERING HIGHLIGHTS:
+- Geospatial Processing: Decoded string geohashes into raw Latitude/Longitude coordinates and engineered spatial interaction terms to capture micro-neighborhood demands.
+- Cyclical Time Slices: Formulated continuous hour/minute representations using Sine and Cosine transformations to model chronological transitions smoothly.
+- Historical Match Lag: Built a custom dictionary lookup to feed exact Day-48 historical traffic snapshots as predictive lag inputs for Day-49 targets.
+
+3. MODELING & META-OPTIMIZATION:
+- Trained a diverse ensemble combining LightGBM (leaf-wise growth), XGBoost (depth-wise growth), and CatBoost (symmetric tree architectures).
+- Utilized SciPy's Nelder-Mead simplex solver to find the optimal mathematical blending weights based purely on Out-of-Fold (OOF) validation performance.
+- Clipped final test target projections strictly to a valid physical scale [0.0, 1.0].
