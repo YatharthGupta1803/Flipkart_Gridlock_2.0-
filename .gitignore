@@ -4,7 +4,8 @@ __pycache__/
 *.pyc
 
 # Local Tracking Directories (Shielded from Git)
-data/
+data/raw/
+data/processed/
 submissions/
 catboost_info/
 
