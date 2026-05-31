@@ -1,0 +1,56 @@
+# Flipkart Gridlock 2.0 - Solution Approach Document
+
+## 1. Overview and Architecture
+Our solution frames the traffic demand estimation task as a high-frequency spatiotemporal regression problem. Rather than relying solely on standard gradient boosting over raw categorical features, our architecture (Version 6.0) synthesizes 37 high-fidelity features. The core philosophy of this approach was to completely eliminate data leakage while explicitly modeling organic traffic hubs, cyclical time continuity, and strict 24-hour historical memory.
+
+The final pipeline utilizes a robust 5-Fold Cross-Validation strategy, training an ensemble of LightGBM, XGBoost, and CatBoost models. The blending weights are mathematically optimized using a Nelder-Mead simplex solver to directly maximize the competition evaluation metric.
+
+## 2. Feature Engineering
+
+### A. Temporal & Cyclical Mapping
+Standard tree algorithms struggle to understand that 23:59 and 00:00 are consecutive minutes, treating them as opposite ends of a number line. To resolve this:
+* We converted standard string timestamps into continuous minute representations.
+* We applied trigonometric Sine and Cosine waves to both the hour and minute domains. This maps time onto a continuous circle, perfectly bridging the midnight gap.
+* We extracted domain-specific binary triggers: `is_rush_hour`, `is_weekend`, `is_peak_am`, and `is_peak_pm`.
+
+### B. Spatial Discovery & Coordinate Resolution
+Standard geohashes act as rigid rectangular grids, but traffic behaves organically. 
+* We decoded all Geohashes back into their raw Latitude and Longitude coordinates.
+* We deployed an unsupervised K-Means clustering algorithm (k=25) across the coordinate space to dynamically discover the city's true organic "Traffic Hubs."
+* We computed the Euclidean distance of every local grid to the geographic center of the dataset.
+* We extracted Geohash prefixes (Length 3 and 4) to map macro and micro neighborhood regions.
+
+### C. The 24-Hour Rolling Lag (Historical Memory)
+The strongest predictor of traffic is the traffic density at the exact same location exactly 24 hours prior. 
+* We created a historical state memory by shifting the `day` matrix forward by exactly 1 day mathematically (`day + 1`). 
+* This allowed us to map "yesterday's" exact demand to "today's" coordinates in a purely vectorized manner, providing a massive signal boost without causing training-set self-reflection leakage.
+
+### D. Leakage-Free K-Fold Target Profiling
+To capture regional density baselines without overfitting:
+* We implemented Out-of-Fold (OOF) Target Encoding for highly granular variables like `geohash` and our custom spatiotemporal interaction term (`interaction_geo_time`).
+* By using a strict 5-Fold split loop, the historical average demand for a specific location was calculated *only* using rows the model was not currently evaluating. This completely prevented look-ahead target leakage.
+
+### E. Domain Proxies & Capacity Constraints
+We engineered explicit physical capacity proxies for the road networks:
+* **Traffic Capacity Index:** Created by mathematically scaling `NumberofLanes` by the `LargeVehicles` allowance weight.
+* **Density Mapping:** Mapped the raw frequency count of every geohash and timeslot to help the model recognize highly sampled hubs versus sparse outer grids.
+
+## 3. Modeling & Ensemble Strategy
+
+Our predictive engine consists of a triplet of diverse gradient-boosting frameworks:
+1. **LightGBM:** Utilized leaf-wise growth (`num_leaves=256`) to capture complex, high-order categorical combinations rapidly.
+2. **XGBoost:** Utilized depth-wise growth (`max_depth=7`) to build structurally complementary trees that regularize the LightGBM outputs.
+3. **CatBoost:** Utilized symmetric tree structures, which excel out-of-the-box at handling our deeply nested categorical target encodings and interaction strings.
+
+All models were trained using a 5-Fold Cross-Validation loop (`random_state=42`) with strict Early Stopping to prevent overfitting on the training iterations.
+
+## 4. Metric Optimization & Post-Processing
+
+Instead of guessing blending weights (e.g., 33/33/33) or optimizing purely for Root Mean Squared Error (RMSE), we aligned the ensemble directly with the leaderboard objective.
+
+* **Nelder-Mead Optimization:** We passed our Out-of-Fold (OOF) prediction arrays into a SciPy Nelder-Mead simplex solver. We engineered the objective function to minimize the negative score, directly maximizing the platform's specific metric: `max(0, 100 * R2)`.
+* **Physical Boundary Enforcement (Clipping):** Because traffic demand is a physical measurement, predictions cannot fall below 0% or exceed 100%. Before exporting the final submission array, we mathematically clipped all continuous predictions strictly between `[0.0, 1.0]`. This prevented the models from bleeding points on impossible negative trends or overshoot predictions.
+
+## 5. Hardware & Reproducibility
+* **Dependencies:** Python 3, Pandas, NumPy, Scikit-Learn, SciPy, LightGBM, XGBoost, CatBoost, pygeohash.
+* **Execution:** The entire pipeline is fully self-contained in a single execution script, running seamlessly from raw CSV ingestion to schema-compliant submission export.
