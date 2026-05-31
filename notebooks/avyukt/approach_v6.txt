@@ -1,0 +1,24 @@
+# Flipkart Gridlock 2.0: Executive Technical Approach (Version 6.0)
+
+## 1. High-Level System Architecture
+The objective of this pipeline is to forecast continuous traffic demand ratios across a high-density urban grid. Version 6.0 introduces a **Two-Tower Meta-Ensemble Architecture** featuring logarithmic target compression and asymmetric blending logic.
+
+## 2. Advanced Feature Engineering & Dual Clustering
+Our dataset is augmented with exactly 38 spatiotemporal features, leveraging:
+* **Deep Historical Memory:** Forward-shifted `Day+1` and `Day+2` coordinate maps.
+* **Dual K-Means Clustering:** Tower 1 utilizes 25 unsupervised macro-hubs, while Tower 2 utilizes 150 unsupervised micro-hubs.
+* **Trigonometric Temporal Continuity:** Sine and Cosine waves applied natively to timestamps.
+
+## 3. Logarithmic Target Transformation (`log1p` / `expm1`)
+Traffic demand exhibits an inherently skewed distribution with unpredictable capacity spikes. To prevent the gradient boosting models from heavily penalizing themselves on absolute error variance during these spikes:
+1. The raw target is mathematically compressed into log-space via $y_{log} = \ln(1 + y_{raw})$ prior to K-Fold ingestion.
+2. The models train strictly on this logarithmically bounded target.
+3. The generated test inferences and Out-of-Fold (OOF) arrays are expanded back into standard physical capacity scales using $y_{raw} = \exp(y_{log}) - 1$.
+
+## 4. Multi-Engine Gradient Boosting
+Both towers utilize a diverse triplet of frameworks (LightGBM, XGBoost, CatBoost) mapped to distinct architectural configurations:
+* **Tower 1 (Generalization):** Shallow tree constraints (`max_depth=8`) combined with 25-cluster resolution maps.
+* **Tower 2 (Deep Memory):** Unconstrained tree depths (`max_depth=12`) combined with 150-cluster resolution maps.
+
+## 5. 70/30 Meta-Ensemble Fusion
+Following mathematical evaluation, Tower 1 generalized to the hidden test arrays more efficiently than Tower 2. To capture the precise outlier logic of Tower 2 without compromising the foundational stability of Tower 1, the final submission arrays are fused using a **70% / 30%** fractional weighting ratio rather than a standard geometric mean.
