@@ -8,6 +8,7 @@ data/raw/
 data/processed/
 submissions/
 catboost_info/
+data/avyukt_processed/
 
 # OS Specific junk
 .DS_Store
